@@ -84,9 +84,7 @@ public class ActorService {
 				map.put(r.getIndex().getActorName(), list);
 
 			}
-			// map.put(r.getIndex().getActorName(), new
-			// RoleDTO(r.getIndex().getRoleName(),
-			// r.getIndex().getActorName(),r.getStartDate(), r.getEndDate()));
+			
 		}
 		return map;
 	}
@@ -117,7 +115,6 @@ public class ActorService {
 		for (Actors a : actorList) {
 			Map<String, String> innerMap = new HashMap<>();
 			try {
-				// properties.load(new FileInputStream("kgsearch.properties"));
 
 				HttpTransport httpTransport = new NetHttpTransport();
 				HttpRequestFactory requestFactory = httpTransport.createRequestFactory();
@@ -174,9 +171,7 @@ public class ActorService {
 							if (savedRoles.size() > 0) {
 								log.info("Saved " + savedRoles.size() + " roles");
 								rolesFlag = true;
-								// RoleSynonymListJson data =
-								// entry.getValue();
-
+								
 							}
 						}
 

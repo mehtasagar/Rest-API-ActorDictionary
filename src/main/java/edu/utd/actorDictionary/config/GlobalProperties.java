@@ -8,6 +8,17 @@ import org.springframework.stereotype.Component;
 public class GlobalProperties {
 
 	private String apiKey;
+	private String secretKey;
+
+	
+	
+	public String getSecretKey() {
+		return secretKey;
+	}
+
+	public void setSecretKey(String secretKey) {
+		this.secretKey = secretKey;
+	}
 
 	public String getApiKey() {
 		return apiKey;

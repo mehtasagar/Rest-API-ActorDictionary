@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
+import edu.utd.actorDictionary.config.GlobalProperties;
 import edu.utd.actorDictionary.domain.Synonyms;
 import edu.utd.actorDictionary.dto.RoleDTO;
 import edu.utd.actorDictionary.dto.RoleSynonymListJson;
@@ -27,17 +28,22 @@ import edu.utd.actorDictionary.service.ActorService;
 public class ActorDictionaryController {
 
 	private static final Logger log = LoggerFactory.getLogger(ActorDictionaryController.class);
-
+	private GlobalProperties global;
+	
 	@Autowired
 	private ActorService service;
 
-	/*
-	 * @ExceptionHandler(UnauthorizedAccess.class) public ResponseEntity<Object>
-	 * forbidden() { UnauthorizedError error = new UnauthorizedError(
-	 * "Access Denied"); return new ResponseEntity<Object>(error,
-	 * HttpStatus.UNAUTHORIZED); }
+	@Autowired
+    public void setGlobal(GlobalProperties global) {
+        this.global = global;
+    }
+	
+	/**
+	 * This is API endpoint for getting list of actors.
+	 * @param secretKey
+	 * @return
+	 * @throws ParseException
 	 */
-
 	@CrossOrigin
 	@RequestMapping(method = RequestMethod.GET, value = "/dictionary/actors", headers = { "Accept=application/json" })
 	public List<String> getActors(@RequestHeader(value = "secret-key") String secretKey) throws ParseException {
@@ -54,13 +60,24 @@ public class ActorDictionaryController {
 
 	}
 
+	/**
+	 * This function validates the request
+	 * @param secretKey
+	 * @return
+	 */
 	private boolean validate(String secretKey) {
-		if (secretKey.equals("mySecretKey")) {
+		if (secretKey.equals(global.getSecretKey())) {
 			return true;
 		}
 		return false;
 	}
 
+	/**
+	 * This is API endpoint for getting list of roles.
+	 * @param secretKey
+	 * @return
+	 * @throws ParseException
+	 */
 	@CrossOrigin
 	@RequestMapping(method = RequestMethod.GET, value = "/dictionary/actorRoles", headers = {
 			"Accept=application/json" })
@@ -79,6 +96,12 @@ public class ActorDictionaryController {
 
 	}
 
+	/**
+	 * This is API endpoint for getting list of synonyms.
+	 * @param secretKey
+	 * @return
+	 * @throws ParseException
+	 */
 	@CrossOrigin
 	@RequestMapping(method = RequestMethod.GET, value = "/dictionary/synonyms", headers = { "Accept=application/json" })
 	public Map<String, List<String>> getSynonyms(@RequestHeader(value = "secret-key") String secretKey)
@@ -96,6 +119,12 @@ public class ActorDictionaryController {
 
 	}
 
+	/**
+	 * This is API endpoint for getting wiki links for actors
+	 * @param secretKey
+	 * @return
+	 * @throws ParseException
+	 */
 	@CrossOrigin
 	@RequestMapping(method = RequestMethod.GET, value = "/dictionary/wikiForActors", headers = {
 			"Accept=application/json" })
@@ -114,6 +143,13 @@ public class ActorDictionaryController {
 
 	}
 	
+	/**
+	 * This is the API endpoint for uploading data for dictionary
+	 * @param secretKey
+	 * @param input
+	 * @return
+	 * @throws ParseException
+	 */
 	@CrossOrigin
 	@RequestMapping(method = RequestMethod.POST, value = "/dictionary/upload", headers = {
 			"Accept=application/json" })
@@ -134,6 +170,13 @@ public class ActorDictionaryController {
 
 	}
 	
+	/**
+	 * This is the API endpoint for adding synonym
+	 * @param secretKey
+	 * @param input
+	 * @return
+	 * @throws ParseException
+	 */
 	@CrossOrigin
 	@RequestMapping(method = RequestMethod.POST, value = "/dictionary/saveSynonym", headers = {
 			"Accept=application/json" })
@@ -154,6 +197,13 @@ public class ActorDictionaryController {
 
 	}
 	
+	/**
+	 * This is the API endpoint for deleting synonym
+	 * @param secretKey
+	 * @param input
+	 * @return
+	 * @throws ParseException
+	 */
 	@CrossOrigin
 	@RequestMapping(method = RequestMethod.DELETE, value = "/dictionary/deleteSynonym", headers = {
 			"Accept=application/json" })
@@ -174,7 +224,13 @@ public class ActorDictionaryController {
 
 	}
 	
-	
+	/**
+	 * This is the API endpoint for saving the role. 
+	 * @param secretKey
+	 * @param input
+	 * @return
+	 * @throws ParseException
+	 */
 	@CrossOrigin
 	@RequestMapping(method = RequestMethod.POST, value = "/dictionary/saveRole", headers = {
 			"Accept=application/json" })
@@ -195,6 +251,13 @@ public class ActorDictionaryController {
 
 	}
 	
+	/**
+	 * This is the API endpoint for deleting roles
+	 * @param secretKey
+	 * @param input
+	 * @return
+	 * @throws ParseException
+	 */
 	@CrossOrigin
 	@RequestMapping(method = RequestMethod.DELETE, value = "/dictionary/deleteRole", headers = {
 			"Accept=application/json" })
