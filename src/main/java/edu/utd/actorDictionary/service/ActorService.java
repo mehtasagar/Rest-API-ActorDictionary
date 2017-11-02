@@ -126,7 +126,6 @@ public class ActorService {
 				url.put("query", a.getName());
 				url.put("limit", "1");
 				url.put("indent", "true");
-				//url.put("key", "AIzaSyAfeoh_Ypap3qGjURUu_ndr_Qkbj-2HEzE");
 				url.put("key", global.getApiKey());
 				HttpRequest request = requestFactory.buildGetRequest(url);
 				HttpResponse httpResponse = request.execute();
