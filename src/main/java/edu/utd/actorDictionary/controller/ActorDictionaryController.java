@@ -1,5 +1,9 @@
 package edu.utd.actorDictionary.controller;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.text.ParseException;
 import java.util.List;
 import java.util.Map;
@@ -7,6 +11,8 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -17,7 +23,6 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import edu.utd.actorDictionary.config.GlobalProperties;
-import edu.utd.actorDictionary.domain.Synonyms;
 import edu.utd.actorDictionary.dto.RoleDTO;
 import edu.utd.actorDictionary.dto.RoleSynonymListJson;
 import edu.utd.actorDictionary.dto.SynonymDTO;
@@ -269,6 +274,40 @@ public class ActorDictionaryController {
 			boolean success = service.deleteRole(input);
 			if(success){
 				return new ResponseEntity<>(HttpStatus.OK);
+			}
+			
+			return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+		} else {
+			throw new UnauthorizedAccessException();
+		}
+
+	}
+	
+	@CrossOrigin
+	@RequestMapping(method = RequestMethod.GET, value = "/dictionary/downloadDictionary", headers = { "Accept=application/json" })
+	//public ResponseEntity<?> downloadDictionary (@RequestHeader(value = "secret-key") String secretKey)
+	public ResponseEntity<?> downloadDictionary ()
+			throws ParseException, IOException {
+		//boolean valid = validate(secretKey);
+		boolean valid = true;
+
+		if (valid) {
+			log.info("Client request :: download data ");
+			//boolean success = service.saveData(input);
+			
+			//File file = new File("README.md");
+			File file = service.createFile();
+			 InputStreamResource resource = new InputStreamResource(new FileInputStream(file));
+			 //InputStreamResource fileResource = service.createFile();
+
+			boolean success = true;
+			if(success){
+				 HttpHeaders responseHeaders = new HttpHeaders();
+				 responseHeaders.add(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + file.getName());
+
+				 responseHeaders.add(org.springframework.http.HttpHeaders.CONTENT_TYPE, "application/octet-stream");
+				// return new Response
+				return new ResponseEntity<>(resource,responseHeaders,HttpStatus.OK);
 			}
 			
 			return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);

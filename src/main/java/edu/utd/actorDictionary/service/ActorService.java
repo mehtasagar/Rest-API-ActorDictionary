@@ -1,5 +1,9 @@
 package edu.utd.actorDictionary.service;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -11,6 +15,7 @@ import org.json.simple.parser.JSONParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +27,7 @@ import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.jayway.jsonpath.JsonPath;
 
+import edu.utd.actorDictionary.config.CacheConfig;
 import edu.utd.actorDictionary.config.GlobalProperties;
 import edu.utd.actorDictionary.domain.Actors;
 import edu.utd.actorDictionary.domain.Roles;
@@ -41,7 +47,6 @@ public class ActorService {
 	private static final Logger log = LoggerFactory.getLogger(ActorService.class);
 	private GlobalProperties global;
 
-	
 	@Autowired
 	private ActorsRepository actorRepository;
 
@@ -52,10 +57,10 @@ public class ActorService {
 	private SynonymsRepository synonymRepository;
 
 	@Autowired
-    public void setGlobal(GlobalProperties global) {
-        this.global = global;
-    }
-	
+	public void setGlobal(GlobalProperties global) {
+		this.global = global;
+	}
+
 	public List<String> findAllActors() {
 
 		List<Actors> actorList = actorRepository.findAll();
@@ -84,7 +89,7 @@ public class ActorService {
 				map.put(r.getIndex().getActorName(), list);
 
 			}
-			
+
 		}
 		return map;
 	}
@@ -149,12 +154,11 @@ public class ActorService {
 			for (Map.Entry<String, RoleSynonymListJson> entry : input.entrySet()) {
 
 				if (entry.getValue() != null) {
-					if(entry.getKey()!=null && entry.getKey().length()>0){
+					if (entry.getKey() != null && entry.getKey().length() > 0) {
 						Actors a = new Actors(entry.getKey());
 						actorRepository.save(a);
 					}
-					
-					
+
 					RoleSynonymListJson data = entry.getValue();
 					if (data.getRoles() != null && data.getRoles().size() > 0) {
 
@@ -171,7 +175,7 @@ public class ActorService {
 							if (savedRoles.size() > 0) {
 								log.info("Saved " + savedRoles.size() + " roles");
 								rolesFlag = true;
-								
+
 							}
 						}
 
@@ -203,11 +207,12 @@ public class ActorService {
 		}
 		return false;
 	}
-	
+
 	@Transactional(rollbackFor = Exception.class)
 	public boolean saveSynonym(SynonymDTO input) {
-		if(input.getName()!=null && input.getName().length()>0 && input.getSynonym()!=null && input.getSynonym().length()>0){
-			SynonymsPK synPk=new SynonymsPK( input.getSynonym(),input.getName());
+		if (input.getName() != null && input.getName().length() > 0 && input.getSynonym() != null
+				&& input.getSynonym().length() > 0) {
+			SynonymsPK synPk = new SynonymsPK(input.getSynonym(), input.getName());
 			Synonyms s = new Synonyms(synPk);
 			synonymRepository.save(s);
 			return true;
@@ -217,11 +222,11 @@ public class ActorService {
 	}
 
 	public boolean deleteSynonym(SynonymDTO input) {
-		if(input.getName()!=null && input.getName().length()>0 && input.getSynonym()!=null && input.getSynonym().length()>0){
-			
-			
-			SynonymsPK synPk=new SynonymsPK( input.getSynonym(),input.getName());
-			//Synonyms s = new Synonyms(synPk);
+		if (input.getName() != null && input.getName().length() > 0 && input.getSynonym() != null
+				&& input.getSynonym().length() > 0) {
+
+			SynonymsPK synPk = new SynonymsPK(input.getSynonym(), input.getName());
+			// Synonyms s = new Synonyms(synPk);
 			synonymRepository.delete(synPk);
 			return true;
 		}
@@ -230,27 +235,55 @@ public class ActorService {
 	}
 
 	public boolean deleteRole(RoleDTO input) {
-		if(input.getKey()!=null && input.getKey().length()>0 && input.getRole()!=null && input.getRole().length()>0){
-			RolesPK rolespk= new RolesPK(input.getRole(),input.getKey());
-			//Roles roles = new Roles(rolespk,input.getStart(),input.getEnd());
+		if (input.getKey() != null && input.getKey().length() > 0 && input.getRole() != null
+				&& input.getRole().length() > 0) {
+			RolesPK rolespk = new RolesPK(input.getRole(), input.getKey());
+			// Roles roles = new Roles(rolespk,input.getStart(),input.getEnd());
 			roleRepository.delete(rolespk);
 			return true;
-			
+
 		}
 		return false;
 	}
 
 	@Transactional(rollbackFor = Exception.class)
 	public boolean saveRole(RoleDTO input) {
-		if(input.getKey()!=null && input.getKey().length()>0 && input.getRole()!=null && input.getRole().length()>0){
-			RolesPK rolespk= new RolesPK(input.getRole(),input.getKey());
-			Roles roles = new Roles(rolespk,input.getStart(),input.getEnd());
+		if (input.getKey() != null && input.getKey().length() > 0 && input.getRole() != null
+				&& input.getRole().length() > 0) {
+			RolesPK rolespk = new RolesPK(input.getRole(), input.getKey());
+			Roles roles = new Roles(rolespk, input.getStart(), input.getEnd());
 			roleRepository.save(roles);
 			return true;
-			
+
 		}
 		// TODO Auto-generated method stub
 		return false;
+	}
+
+	@Cacheable(CacheConfig.CACHE_ONE)
+	public File createFile() throws IOException {
+		File file = new File("dictionary.txt");
+		PrintWriter printWriter = new PrintWriter(new FileWriter(file));
+		List<String> actors = findAllActors();
+		for (String actor : actors) {
+			printWriter.println(actor);
+			List<Synonyms> synonyms = synonymRepository.findByIndexActorName(actor);
+			for (Synonyms syn : synonyms) {
+				printWriter.println("+" + syn.getIndex().getSynonym());
+			}
+			List<Roles> roles = roleRepository.findByIndexActorName(actor);
+			for (Roles role : roles) {
+				String s = "        [" + role.getIndex().getRoleName() + " " + role.getStartDate() + "-"
+						+ role.getEndDate() + "]";
+				printWriter.println(s);
+
+			}
+		}
+		printWriter.close();
+		// InputStreamResource resource = new InputStreamResource(new
+		// FileInputStream(file));
+
+		return file;
 	}
 
 }
