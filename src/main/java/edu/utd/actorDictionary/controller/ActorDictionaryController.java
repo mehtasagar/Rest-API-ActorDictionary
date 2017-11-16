@@ -285,11 +285,11 @@ public class ActorDictionaryController {
 	
 	@CrossOrigin
 	@RequestMapping(method = RequestMethod.GET, value = "/dictionary/downloadDictionary", headers = { "Accept=application/json" })
-	//public ResponseEntity<?> downloadDictionary (@RequestHeader(value = "secret-key") String secretKey)
-	public ResponseEntity<?> downloadDictionary ()
+	public ResponseEntity<?> downloadDictionary (@RequestHeader(value = "secret-key") String secretKey)
+	//public ResponseEntity<?> downloadDictionary ()
 			throws ParseException, IOException {
-		//boolean valid = validate(secretKey);
-		boolean valid = true;
+		boolean valid = validate(secretKey);
+		//boolean valid = true;
 
 		if (valid) {
 			log.info("Client request :: download data ");

@@ -17,7 +17,7 @@ public class CacheConfig {
 	 @Bean
 	   public Cache cacheOne() {
 	      return new GuavaCache(CACHE_ONE, CacheBuilder.newBuilder()
-	            .expireAfterWrite(1, TimeUnit.MINUTES)
+	            .expireAfterWrite(5, TimeUnit.MINUTES)
 	            .build());
 	   }
 }
