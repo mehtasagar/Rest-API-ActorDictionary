@@ -1,9 +1,11 @@
 package edu.utd.actorDictionary.service;
 
+
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -34,18 +36,24 @@ import edu.utd.actorDictionary.domain.Roles;
 import edu.utd.actorDictionary.domain.RolesPK;
 import edu.utd.actorDictionary.domain.Synonyms;
 import edu.utd.actorDictionary.domain.SynonymsPK;
+import edu.utd.actorDictionary.domain.User;
 import edu.utd.actorDictionary.dto.RoleDTO;
 import edu.utd.actorDictionary.dto.RoleSynonymListJson;
 import edu.utd.actorDictionary.dto.SynonymDTO;
 import edu.utd.actorDictionary.repository.ActorsRepository;
 import edu.utd.actorDictionary.repository.RolesRepository;
 import edu.utd.actorDictionary.repository.SynonymsRepository;
+import edu.utd.actorDictionary.repository.UserRepository;
+import edu.utd.actorDictionary.utility.Utility;
 
 @Service
 public class ActorService {
 
 	private static final Logger log = LoggerFactory.getLogger(ActorService.class);
 	private GlobalProperties global;
+
+	@Autowired
+	private Utility commonUtility;
 
 	@Autowired
 	private ActorsRepository actorRepository;
@@ -55,6 +63,9 @@ public class ActorService {
 
 	@Autowired
 	private SynonymsRepository synonymRepository;
+
+	@Autowired
+	private UserRepository userRepository;
 
 	@Autowired
 	public void setGlobal(GlobalProperties global) {
@@ -202,7 +213,7 @@ public class ActorService {
 			}
 		}
 
-		if (synonymFlag && rolesFlag) {
+		if (synonymFlag || rolesFlag) {
 			return true;
 		}
 		return false;
@@ -284,6 +295,43 @@ public class ActorService {
 		// FileInputStream(file));
 
 		return file;
+	}
+
+	@Transactional(rollbackFor = Exception.class)
+	public String registerUser(User input) throws NoSuchAlgorithmException {
+		if (input != null && !input.getFirstName().isEmpty() && !input.getUsername().isEmpty()
+				&& !input.getHashedPassword().isEmpty()) {
+			List<User> correctUsers = userRepository.findAll();
+			if(correctUsers!=null && correctUsers.size()>0){
+				for(User u: correctUsers){
+					if(u.getUsername().equals(input.getUsername())){
+						return "Username is taken";
+					}
+				}
+			}
+			input.setHashedPassword(commonUtility.modifyPassword(input.getHashedPassword()));
+			userRepository.save(input);
+			return "registration Successful";
+		}
+
+		return "";
+	}
+
+	public String loginUser(User input) throws NoSuchAlgorithmException {
+		if (input != null && !input.getUsername().isEmpty() && !input.getHashedPassword().isEmpty()) {
+			List<User> correctUsers = userRepository.findByUsername(input.getUsername());
+			if(correctUsers!=null && correctUsers.size()==1){
+				User correctUser = correctUsers.get(0);
+				if(correctUser.getHashedPassword().equals(commonUtility.modifyPassword(input.getHashedPassword())) && correctUser.getUsername().equals(input.getUsername())){
+					return "Valid User";
+				}else{
+					return "Invalid Credentials";
+				}
+			}else{
+				return "Invalid Credentials";
+			}
+		}
+		return "";
 	}
 
 }

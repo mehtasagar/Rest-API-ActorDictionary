@@ -9,6 +9,7 @@ public class GlobalProperties {
 
 	private String apiKey;
 	private String secretKey;
+	private String salt;
 
 	
 	
@@ -26,6 +27,14 @@ public class GlobalProperties {
 
 	public void setApiKey(String apiKey) {
 		this.apiKey = apiKey;
+	}
+
+	public String getSalt() {
+		return salt;
+	}
+
+	public void setSalt(String salt) {
+		this.salt = salt;
 	}
 	
 	
