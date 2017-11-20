@@ -26,6 +26,15 @@ public class Roles extends ResourceSupport implements Serializable{
 		this.startDate = startDate;
 		this.endDate = endDate;
 	}
+	
+	public Roles(RolesPK index, String startDate, String endDate,String username) {
+		super();
+		this.index = index;
+		this.startDate = startDate;
+		this.endDate = endDate;
+		this.username= username;
+	}
+
 
 	@EmbeddedId
 	private RolesPK index;
@@ -36,6 +45,9 @@ public class Roles extends ResourceSupport implements Serializable{
 	
 	@Column(name="End_date")
 	private String endDate;
+	
+	@Column(name="username")
+	private String username;
 
 	
 	
@@ -61,6 +73,14 @@ public class Roles extends ResourceSupport implements Serializable{
 
 	public void setEndDate(String endDate) {
 		this.endDate = endDate;
+	}
+
+	public String getUsername() {
+		return username;
+	}
+
+	public void setUsername(String username) {
+		this.username = username;
 	}
 	
 

@@ -2,7 +2,6 @@ package edu.utd.actorDictionary.controller;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.text.ParseException;
@@ -17,6 +16,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -57,12 +57,12 @@ public class ActorDictionaryController {
 	 * @throws ParseException
 	 */
 	@CrossOrigin
-	@RequestMapping(method = RequestMethod.GET, value = "/dictionary/actors", headers = { "Accept=application/json" })
-	public List<String> getActors(@RequestHeader(value = "secret-key") String secretKey) throws ParseException {
+	@RequestMapping(method = RequestMethod.GET, value = "/dictionary/actors/{username}", headers = { "Accept=application/json" })
+	public List<String> getActors(@RequestHeader(value = "secret-key") String secretKey,@PathVariable String username) throws ParseException {
 		boolean valid = commonService.validate(secretKey);
 		if (valid) {
 			log.info("Client request :: actors ");
-			List<String> actorList = service.findAllActors();
+			List<String> actorList = service.findAllActors(username);
 
 			log.info("Returning " + actorList.size() + " rows. ");
 			return actorList;
@@ -90,14 +90,14 @@ public class ActorDictionaryController {
 	 * @throws ParseException
 	 */
 	@CrossOrigin
-	@RequestMapping(method = RequestMethod.GET, value = "/dictionary/actorRoles", headers = {
+	@RequestMapping(method = RequestMethod.GET, value = "/dictionary/actorRoles/{username}", headers = {
 			"Accept=application/json" })
-	public Map<String, List<RoleDTO>> getRoles(@RequestHeader(value = "secret-key") String secretKey)
+	public Map<String, List<RoleDTO>> getRoles(@RequestHeader(value = "secret-key") String secretKey,@PathVariable String username)
 			throws ParseException {
 		boolean valid = commonService.validate(secretKey);
 		if (valid) {
 			log.info("Client request :: roles ");
-			Map<String, List<RoleDTO>> roleMap = service.findRoles();
+			Map<String, List<RoleDTO>> roleMap = service.findRoles(username);
 
 			log.info("Returning " + roleMap.size() + " rows. ");
 			return roleMap;
@@ -115,13 +115,13 @@ public class ActorDictionaryController {
 	 * @throws ParseException
 	 */
 	@CrossOrigin
-	@RequestMapping(method = RequestMethod.GET, value = "/dictionary/synonyms", headers = { "Accept=application/json" })
-	public Map<String, List<String>> getSynonyms(@RequestHeader(value = "secret-key") String secretKey)
+	@RequestMapping(method = RequestMethod.GET, value = "/dictionary/synonyms/{username}", headers = { "Accept=application/json" })
+	public Map<String, List<String>> getSynonyms(@RequestHeader(value = "secret-key") String secretKey,@PathVariable String username)
 			throws ParseException {
 		boolean valid = commonService.validate(secretKey);
 		if (valid) {
 			log.info("Client request :: synonyms ");
-			Map<String, List<String>> synonyms = service.findSynonyms();
+			Map<String, List<String>> synonyms = service.findSynonyms(username);
 
 			log.info("Returning " + synonyms.size() + " rows. ");
 			return synonyms;
@@ -139,14 +139,14 @@ public class ActorDictionaryController {
 	 * @throws ParseException
 	 */
 	@CrossOrigin
-	@RequestMapping(method = RequestMethod.GET, value = "/dictionary/wikiForActors", headers = {
+	@RequestMapping(method = RequestMethod.GET, value = "/dictionary/wikiForActors/{username}", headers = {
 			"Accept=application/json" })
-	public Map<String, Map<String, String>> getWikiForActors(@RequestHeader(value = "secret-key") String secretKey)
+	public Map<String, Map<String, String>> getWikiForActors(@RequestHeader(value = "secret-key") String secretKey,@PathVariable String username)
 			throws ParseException {
 		boolean valid = commonService.validate(secretKey);
 		if (valid) {
 			log.info("Client request :: Wike For Actors ");
-			Map<String, Map<String, String>> actorWiki = service.findActorWiki();
+			Map<String, Map<String, String>> actorWiki = service.findActorWiki(username);
 
 			log.info("Returning " + actorWiki.size() + " rows. ");
 			return actorWiki;
@@ -192,16 +192,17 @@ public class ActorDictionaryController {
 	 * @throws ParseException
 	 */
 	@CrossOrigin
-	@RequestMapping(method = RequestMethod.POST, value = "/dictionary/saveSynonym", headers = {
+	@RequestMapping(method = RequestMethod.POST, value = "/dictionary/saveSynonym/{username}", headers = {
 			"Accept=application/json" })
 	public ResponseEntity<?> addSynonym(@RequestHeader(value = "secret-key") String secretKey,
-			@RequestBody SynonymDTO input) throws ParseException {
+			@RequestBody SynonymDTO input,@PathVariable String username) throws ParseException {
 		boolean valid = commonService.validate(secretKey);
 		if (valid) {
-			log.info("Client request :: upload data ");
-			boolean success = service.saveSynonym(input);
-			if (success) {
-				return new ResponseEntity<>(HttpStatus.OK);
+			log.info("Client request :: Save Synonym ");
+			String success = service.saveSynonym(input,username);
+			if (!success.isEmpty()) {
+			
+				return new ResponseEntity<>(success,HttpStatus.OK);
 			}
 
 			return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -220,16 +221,16 @@ public class ActorDictionaryController {
 	 * @throws ParseException
 	 */
 	@CrossOrigin
-	@RequestMapping(method = RequestMethod.DELETE, value = "/dictionary/deleteSynonym", headers = {
+	@RequestMapping(method = RequestMethod.DELETE, value = "/dictionary/deleteSynonym/{username}", headers = {
 			"Accept=application/json" })
 	public ResponseEntity<?> deleteSynonym(@RequestHeader(value = "secret-key") String secretKey,
-			@RequestBody SynonymDTO input) throws ParseException {
+			@RequestBody SynonymDTO input,@PathVariable String username) throws ParseException {
 		boolean valid = commonService.validate(secretKey);
 		if (valid) {
-			log.info("Client request :: upload data ");
-			boolean success = service.deleteSynonym(input);
-			if (success) {
-				return new ResponseEntity<>(HttpStatus.OK);
+			log.info("Client request :: Delete Synonyms ");
+			String success = service.deleteSynonym(input,username);
+			if (!success.isEmpty()) {
+				return new ResponseEntity<>(success,HttpStatus.OK);
 			}
 
 			return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -248,16 +249,16 @@ public class ActorDictionaryController {
 	 * @throws ParseException
 	 */
 	@CrossOrigin
-	@RequestMapping(method = RequestMethod.POST, value = "/dictionary/saveRole", headers = {
+	@RequestMapping(method = RequestMethod.POST, value = "/dictionary/saveRole/{username}", headers = {
 			"Accept=application/json" })
-	public ResponseEntity<?> addRole(@RequestHeader(value = "secret-key") String secretKey, @RequestBody RoleDTO input)
+	public ResponseEntity<?> addRole(@RequestHeader(value = "secret-key") String secretKey, @RequestBody RoleDTO input,@PathVariable String username)
 			throws ParseException {
 		boolean valid = commonService.validate(secretKey);
 		if (valid) {
 			log.info("Client request :: upload data ");
-			boolean success = service.saveRole(input);
-			if (success) {
-				return new ResponseEntity<>(HttpStatus.OK);
+			String success = service.saveRole(input,username);
+			if (!success.isEmpty()) {
+				return new ResponseEntity<>(success,HttpStatus.OK);
 			}
 
 			return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -276,16 +277,16 @@ public class ActorDictionaryController {
 	 * @throws ParseException
 	 */
 	@CrossOrigin
-	@RequestMapping(method = RequestMethod.DELETE, value = "/dictionary/deleteRole", headers = {
+	@RequestMapping(method = RequestMethod.DELETE, value = "/dictionary/deleteRole/{username}", headers = {
 			"Accept=application/json" })
 	public ResponseEntity<?> deleteRole(@RequestHeader(value = "secret-key") String secretKey,
-			@RequestBody RoleDTO input) throws ParseException {
+			@RequestBody RoleDTO input,@PathVariable String username) throws ParseException {
 		boolean valid = commonService.validate(secretKey);
 		if (valid) {
 			log.info("Client request :: upload data ");
-			boolean success = service.deleteRole(input);
-			if (success) {
-				return new ResponseEntity<>(HttpStatus.OK);
+			String success = service.deleteRole(input,username);
+			if (!success.isEmpty()) {
+				return new ResponseEntity<>(success,HttpStatus.OK);
 			}
 
 			return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);

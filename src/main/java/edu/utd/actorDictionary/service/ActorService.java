@@ -1,11 +1,11 @@
 package edu.utd.actorDictionary.service;
 
-
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.security.NoSuchAlgorithmException;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -40,6 +40,7 @@ import edu.utd.actorDictionary.domain.User;
 import edu.utd.actorDictionary.dto.RoleDTO;
 import edu.utd.actorDictionary.dto.RoleSynonymListJson;
 import edu.utd.actorDictionary.dto.SynonymDTO;
+import edu.utd.actorDictionary.dto.ValidDate;
 import edu.utd.actorDictionary.repository.ActorsRepository;
 import edu.utd.actorDictionary.repository.RolesRepository;
 import edu.utd.actorDictionary.repository.SynonymsRepository;
@@ -72,15 +73,180 @@ public class ActorService {
 		this.global = global;
 	}
 
-	public List<String> findAllActors() {
+	/**
+	 * Returns actorlist by username and all actors that dont have username.
+	 * basically, returning actors that are not yet edited and edited by given
+	 * username
+	 * 
+	 * @param username
+	 * @return
+	 */
+	public List<String> findAllActors(String username) {
 
-		List<Actors> actorList = actorRepository.findAll();
+		List<Actors> actorList = actorRepository.findByUsernameOrUsernameIsNull(username);
 		List<String> actorNames = new ArrayList<String>();
 		for (Actors a : actorList) {
 			actorNames.add(a.getName());
 		}
 		log.info("Actors list size is " + actorList);
 		return actorNames;
+	}
+
+	/**
+	 * Method to register new user. While saving password Md5 hashed salt is
+	 * added to the received MD5hashed password and then reversed and saved.
+	 * 
+	 * @param input
+	 * @return
+	 * @throws NoSuchAlgorithmException
+	 */
+	@Transactional(rollbackFor = Exception.class)
+	public String registerUser(User input) throws NoSuchAlgorithmException {
+		if (input != null && !input.getFirstName().isEmpty() && !input.getUsername().isEmpty()
+				&& !input.getHashedPassword().isEmpty()) {
+			List<User> correctUsers = userRepository.findAll();
+			if (correctUsers != null && correctUsers.size() > 0) {
+				for (User u : correctUsers) {
+					if (u.getUsername().equals(input.getUsername())) {
+						return "Username is taken";
+					}
+				}
+			}
+			input.setHashedPassword(commonUtility.modifyPassword(input.getHashedPassword()));
+			userRepository.save(input);
+			return "registration Successful";
+		}
+
+		return "";
+	}
+
+	/**
+	 * Method to verify login credentials.
+	 * 
+	 * @param input
+	 * @return
+	 * @throws NoSuchAlgorithmException
+	 */
+	public String loginUser(User input) throws NoSuchAlgorithmException {
+		if (input != null && !input.getUsername().isEmpty() && !input.getHashedPassword().isEmpty()) {
+			List<User> correctUsers = userRepository.findByUsername(input.getUsername());
+			if (correctUsers != null && correctUsers.size() == 1) {
+				User correctUser = correctUsers.get(0);
+				if (correctUser.getHashedPassword().equals(commonUtility.modifyPassword(input.getHashedPassword()))
+						&& correctUser.getUsername().equals(input.getUsername())) {
+					return "Valid User";
+				} else {
+					return "Invalid Credentials";
+				}
+			} else {
+				return "Invalid Credentials";
+			}
+		}
+		return "";
+	}
+
+	/**
+	 * Returns list of roles edited by that user or not edited at all.
+	 * 
+	 * @param username
+	 * @return
+	 */
+	public Map<String, List<RoleDTO>> findRoles(String username) {
+		List<Roles> rolesList = roleRepository.findByUsernameOrUsernameIsNull(username);
+		log.info("Roles list size is " + rolesList.size());
+		Map<String, List<RoleDTO>> map = new HashMap<String, List<RoleDTO>>();
+		for (Roles r : rolesList) {
+			if (map.containsKey(r.getIndex().getActorName())) {
+				List<RoleDTO> list = map.get(r.getIndex().getActorName());
+				list.add(new RoleDTO(r.getIndex().getRoleName(), r.getIndex().getActorName(), r.getStartDate(),
+						r.getEndDate()));
+				map.put(r.getIndex().getActorName(), list);
+			} else {
+				List<RoleDTO> list = new ArrayList<RoleDTO>();
+				list.add(new RoleDTO(r.getIndex().getRoleName(), r.getIndex().getActorName(), r.getStartDate(),
+						r.getEndDate()));
+				map.put(r.getIndex().getActorName(), list);
+
+			}
+
+		}
+		return map;
+	}
+
+	/**
+	 * Saves roles edited by user and updates the actors,roles,synonyms
+	 * accordingly
+	 * 
+	 * @param input
+	 * @param username
+	 * @return
+	 * @throws ParseException
+	 */
+	@Transactional(rollbackFor = Exception.class)
+	public String saveRole(RoleDTO input, String username) throws ParseException {
+		ValidDate validDate = commonUtility.validateDate(input);
+		if (input.getKey() != null && input.getKey().length() > 0 && input.getRole() != null
+				&& input.getRole().length() > 0 && validDate.isValid()) {
+			RolesPK rolespk = new RolesPK(input.getRole(), input.getKey());
+			Roles roles = new Roles(rolespk, validDate.getStartDate(), validDate.getEndDate(), username);
+			roleRepository.save(roles);
+			roleRepository.updateRoles(username, input.getKey());
+			actorRepository.updateActors(username, input.getKey());
+			synonymRepository.updateSynonyms(username, input.getKey());
+			return "Success";
+
+		}
+		// TODO Auto-generated method stub
+		return "InvalidData";
+	}
+
+	/**
+	 * Deletes role. Only roles assigned by the given user can be deleted.
+	 * @param input
+	 * @param username
+	 * @return
+	 */
+	public String deleteRole(RoleDTO input, String username) {
+
+		if (input.getKey() != null && input.getKey().length() > 0 && input.getRole() != null
+				&& input.getRole().length() > 0) {
+			List<Roles> roles = roleRepository.findByIndexActorNameAndIndexRoleName(input.getKey(), input.getRole());
+			if (roles != null && roles.size() > 0) {
+				if (roles.get(0).getUsername().equals(username)) {
+					RolesPK rolespk = new RolesPK(input.getRole(), input.getKey());
+					// Roles roles = new
+					// Roles(rolespk,input.getStart(),input.getEnd());
+					roleRepository.delete(rolespk);
+					return "success";
+				}
+			}
+
+		}
+		return "invalidData";
+	}
+
+	/**
+	 * Finds all the synonyms of all actors assigned by the username or where username is null 
+	 * @param username
+	 * @return
+	 */
+	public Map<String, List<String>> findSynonyms(String username) {
+		List<Synonyms> synonyms = synonymRepository.findByUsernameOrUsernameIsNull(username);
+		log.info("Synonyms list size is " + synonyms.size());
+		Map<String, List<String>> map = new HashMap<String, List<String>>();
+		for (Synonyms s : synonyms) {
+			if (map.containsKey(s.getIndex().getActorName())) {
+				List<String> list = map.get(s.getIndex().getActorName());
+				list.add(s.getIndex().getSynonym());
+				map.put(s.getIndex().getActorName(), list);
+			} else {
+				List<String> list = new ArrayList<String>();
+				list.add(s.getIndex().getSynonym());
+				map.put(s.getIndex().getActorName(), list);
+
+			}
+		}
+		return map;
 	}
 
 	public Map<String, List<RoleDTO>> findRoles() {
@@ -124,8 +290,13 @@ public class ActorService {
 		return map;
 	}
 
-	public Map<String, Map<String, String>> findActorWiki() {
-		List<Actors> actorList = actorRepository.findAll();
+	/**
+	 * This method gets top wiki links for actors assigned to username or unassigned actors
+	 * @param username
+	 * @return
+	 */
+	public Map<String, Map<String, String>> findActorWiki(String username) {
+		List<Actors> actorList = actorRepository.findByUsernameOrUsernameIsNull(username);
 		Map<String, Map<String, String>> map = new HashMap<String, Map<String, String>>();
 
 		for (Actors a : actorList) {
@@ -157,6 +328,11 @@ public class ActorService {
 		return map;
 	}
 
+	/**
+	 * Uploads data to dictionary
+	 * @param input
+	 * @return
+	 */
 	@Transactional(rollbackFor = Exception.class)
 	public boolean saveData(Map<String, RoleSynonymListJson> input) {
 		boolean rolesFlag = false, synonymFlag = false;
@@ -219,73 +395,75 @@ public class ActorService {
 		return false;
 	}
 
+	/**
+	 * Saves synonyms
+	 * @param input
+	 * @param username
+	 * @return
+	 */
 	@Transactional(rollbackFor = Exception.class)
-	public boolean saveSynonym(SynonymDTO input) {
+	public String saveSynonym(SynonymDTO input, String username) {
 		if (input.getName() != null && input.getName().length() > 0 && input.getSynonym() != null
 				&& input.getSynonym().length() > 0) {
 			SynonymsPK synPk = new SynonymsPK(input.getSynonym(), input.getName());
-			Synonyms s = new Synonyms(synPk);
+			Synonyms s = new Synonyms(synPk,username);
+			synonymRepository.updateSynonyms(username, input.getName());
+			roleRepository.updateRoles(username, input.getName());
+			actorRepository.updateActors(username, input.getName());
 			synonymRepository.save(s);
-			return true;
+			
+			
+			return "Success";
 		}
 
-		return false;
+		return "InvalidData";
 	}
 
-	public boolean deleteSynonym(SynonymDTO input) {
+	/**
+	 * Deletes Synonyms 
+	 * @param input
+	 * @param username 
+	 * @return
+	 */
+	public String deleteSynonym(SynonymDTO input, String username) {
 		if (input.getName() != null && input.getName().length() > 0 && input.getSynonym() != null
 				&& input.getSynonym().length() > 0) {
-
-			SynonymsPK synPk = new SynonymsPK(input.getSynonym(), input.getName());
-			// Synonyms s = new Synonyms(synPk);
-			synonymRepository.delete(synPk);
-			return true;
+			List<Synonyms> syns= synonymRepository.findByIndexActorNameAndIndexSynonym(input.getName(), input.getSynonym());
+			if(syns!=null && syns.size()>0){
+				if(syns.get(0).getUsername().equals(username)){
+					SynonymsPK synPk = new SynonymsPK(input.getSynonym(), input.getName());
+					// Synonyms s = new Synonyms(synPk);
+					synonymRepository.delete(synPk);
+					return "Success";
+				}
+			}
+			
 		}
 
-		return false;
-	}
-
-	public boolean deleteRole(RoleDTO input) {
-		if (input.getKey() != null && input.getKey().length() > 0 && input.getRole() != null
-				&& input.getRole().length() > 0) {
-			RolesPK rolespk = new RolesPK(input.getRole(), input.getKey());
-			// Roles roles = new Roles(rolespk,input.getStart(),input.getEnd());
-			roleRepository.delete(rolespk);
-			return true;
-
-		}
-		return false;
-	}
-
-	@Transactional(rollbackFor = Exception.class)
-	public boolean saveRole(RoleDTO input) {
-		if (input.getKey() != null && input.getKey().length() > 0 && input.getRole() != null
-				&& input.getRole().length() > 0) {
-			RolesPK rolespk = new RolesPK(input.getRole(), input.getKey());
-			Roles roles = new Roles(rolespk, input.getStart(), input.getEnd());
-			roleRepository.save(roles);
-			return true;
-
-		}
-		// TODO Auto-generated method stub
-		return false;
+		return "InvalidData";
 	}
 
 	@Cacheable(CacheConfig.CACHE_ONE)
 	public File createFile() throws IOException {
 		File file = new File("dictionary.txt");
 		PrintWriter printWriter = new PrintWriter(new FileWriter(file));
-		List<String> actors = findAllActors();
-		for (String actor : actors) {
-			printWriter.println(actor);
-			List<Synonyms> synonyms = synonymRepository.findByIndexActorName(actor);
+		List<Actors> actorList = actorRepository.findByUsernameIsNotNull();
+		for (Actors actor : actorList) {
+			printWriter.println(actor.getName() + "\t#" + actor.getUsername());
+			List<Synonyms> synonyms = synonymRepository.findByIndexActorName(actor.getName());
 			for (Synonyms syn : synonyms) {
 				printWriter.println("+" + syn.getIndex().getSynonym());
 			}
-			List<Roles> roles = roleRepository.findByIndexActorName(actor);
+			List<Roles> roles = roleRepository.findByIndexActorName(actor.getName());
 			for (Roles role : roles) {
-				String s = "        [" + role.getIndex().getRoleName() + " " + role.getStartDate() + "-"
-						+ role.getEndDate() + "]";
+				String s = "        [" + role.getIndex().getRoleName();
+				if(role.getStartDate()!=null && !role.getStartDate().isEmpty() ){
+					s+= " " + role.getStartDate().replace("/", "");
+				}
+				if(role.getEndDate()!=null && !role.getEndDate().isEmpty())
+				 s+= "-"
+						+ role.getEndDate().replace("/", "") ;
+				s+= "]";
 				printWriter.println(s);
 
 			}
@@ -297,41 +475,15 @@ public class ActorService {
 		return file;
 	}
 
-	@Transactional(rollbackFor = Exception.class)
-	public String registerUser(User input) throws NoSuchAlgorithmException {
-		if (input != null && !input.getFirstName().isEmpty() && !input.getUsername().isEmpty()
-				&& !input.getHashedPassword().isEmpty()) {
-			List<User> correctUsers = userRepository.findAll();
-			if(correctUsers!=null && correctUsers.size()>0){
-				for(User u: correctUsers){
-					if(u.getUsername().equals(input.getUsername())){
-						return "Username is taken";
-					}
-				}
-			}
-			input.setHashedPassword(commonUtility.modifyPassword(input.getHashedPassword()));
-			userRepository.save(input);
-			return "registration Successful";
-		}
+	public List<String> findAllActors() {
 
-		return "";
-	}
-
-	public String loginUser(User input) throws NoSuchAlgorithmException {
-		if (input != null && !input.getUsername().isEmpty() && !input.getHashedPassword().isEmpty()) {
-			List<User> correctUsers = userRepository.findByUsername(input.getUsername());
-			if(correctUsers!=null && correctUsers.size()==1){
-				User correctUser = correctUsers.get(0);
-				if(correctUser.getHashedPassword().equals(commonUtility.modifyPassword(input.getHashedPassword())) && correctUser.getUsername().equals(input.getUsername())){
-					return "Valid User";
-				}else{
-					return "Invalid Credentials";
-				}
-			}else{
-				return "Invalid Credentials";
-			}
+		List<Actors> actorList = actorRepository.findByUsernameIsNotNull();
+		List<String> actorNames = new ArrayList<String>();
+		for (Actors a : actorList) {
+			actorNames.add(a.getName());
 		}
-		return "";
+		log.info("Actors list size is " + actorList);
+		return actorNames;
 	}
 
 }
