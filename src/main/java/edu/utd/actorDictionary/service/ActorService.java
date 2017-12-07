@@ -32,6 +32,7 @@ import com.jayway.jsonpath.JsonPath;
 import edu.utd.actorDictionary.config.CacheConfig;
 import edu.utd.actorDictionary.config.GlobalProperties;
 import edu.utd.actorDictionary.domain.Actors;
+import edu.utd.actorDictionary.domain.Dictionary;
 import edu.utd.actorDictionary.domain.Roles;
 import edu.utd.actorDictionary.domain.RolesPK;
 import edu.utd.actorDictionary.domain.Synonyms;
@@ -42,6 +43,7 @@ import edu.utd.actorDictionary.dto.RoleSynonymListJson;
 import edu.utd.actorDictionary.dto.SynonymDTO;
 import edu.utd.actorDictionary.dto.ValidDate;
 import edu.utd.actorDictionary.repository.ActorsRepository;
+import edu.utd.actorDictionary.repository.DictionaryRepository;
 import edu.utd.actorDictionary.repository.RolesRepository;
 import edu.utd.actorDictionary.repository.SynonymsRepository;
 import edu.utd.actorDictionary.repository.UserRepository;
@@ -67,6 +69,9 @@ public class ActorService {
 
 	@Autowired
 	private UserRepository userRepository;
+	
+	@Autowired
+	private DictionaryRepository dictRepository;
 
 	@Autowired
 	public void setGlobal(GlobalProperties global) {
@@ -107,7 +112,7 @@ public class ActorService {
 			List<User> correctUsers = userRepository.findAll();
 			if (correctUsers != null && correctUsers.size() > 0) {
 				for (User u : correctUsers) {
-					if (u.getUsername().equals(input.getUsername())) {
+					if (u.getUsername().toLowerCase().equals(input.getUsername().toLowerCase())) {
 						return "Username is taken";
 					}
 				}
@@ -117,7 +122,7 @@ public class ActorService {
 			return "registration Successful";
 		}
 
-		return "";
+		return "Username or Password is Missing";
 	}
 
 	/**
@@ -142,7 +147,7 @@ public class ActorService {
 				return "Invalid Credentials";
 			}
 		}
-		return "";
+		return "UserName or Password Missing";
 	}
 
 	/**
@@ -295,7 +300,7 @@ public class ActorService {
 	 * @param username
 	 * @return
 	 */
-	public Map<String, Map<String, String>> findActorWiki(String username) {
+	public Map<String, Map<String, String>> findActorWikiByUser(String username) {
 		List<Actors> actorList = actorRepository.findByUsernameOrUsernameIsNull(username);
 		Map<String, Map<String, String>> map = new HashMap<String, Map<String, String>>();
 
@@ -308,7 +313,7 @@ public class ActorService {
 				JSONParser parser = new JSONParser();
 				GenericUrl url = new GenericUrl("https://kgsearch.googleapis.com/v1/entities:search");
 				url.put("query", a.getName());
-				url.put("limit", "1");
+				url.put("limit", "3");
 				url.put("indent", "true");
 				url.put("key", global.getApiKey());
 				HttpRequest request = requestFactory.buildGetRequest(url);
@@ -324,6 +329,44 @@ public class ActorService {
 			}
 			map.put(a.getName(), innerMap);
 		}
+
+		return map;
+	}
+	
+	/**
+	 * This method gets top wiki links for actors assigned to username or unassigned actors
+	 * @param username
+	 * @return
+	 */
+	public Map<String, List<String>> findActorWiki(String actor) {
+		//List<Actors> actorList = actorRepository.findByUsernameOrUsernameIsNull(username);
+		Map<String, List<String>> map = new HashMap<String, List<String>>();
+
+	//	for (Actors a : actorList) {
+			List<String> actorWikis= new ArrayList<String>();
+			try {
+
+				HttpTransport httpTransport = new NetHttpTransport();
+				HttpRequestFactory requestFactory = httpTransport.createRequestFactory();
+				JSONParser parser = new JSONParser();
+				GenericUrl url = new GenericUrl("https://kgsearch.googleapis.com/v1/entities:search");
+				url.put("query", actor);
+				url.put("limit", "3");
+				url.put("indent", "true");
+				url.put("key", global.getApiKey());
+				HttpRequest request = requestFactory.buildGetRequest(url);
+				HttpResponse httpResponse = request.execute();
+				JSONObject response = (JSONObject) parser.parse(httpResponse.parseAsString());
+				JSONArray elements = (JSONArray) response.get("itemListElement");
+				for (Object element : elements) {
+					System.out.println(JsonPath.read(element, "$.result.detailedDescription.url").toString());
+					actorWikis.add(JsonPath.read(element, "$.result.detailedDescription.url").toString());
+				}
+			} catch (Exception ex) {
+				ex.printStackTrace();
+			}
+			map.put(actor, actorWikis);
+	//	}
 
 		return map;
 	}
@@ -484,6 +527,31 @@ public class ActorService {
 		}
 		log.info("Actors list size is " + actorList);
 		return actorNames;
+	}
+
+	/**
+	 * Save dictionary i.e. actor and link to database.
+	 * @param input
+	 * @param username
+	 * @return
+	 */
+	@Transactional(rollbackFor = Exception.class)
+	public String saveDictionary(Dictionary input, String username) {
+		if (username != null && username.length() > 0 && input.getTopLink() != null
+				&& input.getTopLink().length() > 0) {
+			
+			input.setUsername(username);
+			
+			synonymRepository.updateSynonyms(username, input.getActor());
+			roleRepository.updateRoles(username, input.getActor());
+			actorRepository.updateActors(username, input.getActor());
+			dictRepository.save(input);
+			
+			
+			return "Success";
+		}
+
+		return "InvalidData";
 	}
 
 }

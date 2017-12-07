@@ -1,0 +1,15 @@
+package edu.utd.actorDictionary.repository;
+
+import java.util.List;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import edu.utd.actorDictionary.domain.Actors;
+import edu.utd.actorDictionary.domain.Dictionary;
+
+public interface DictionaryRepository  extends JpaRepository<Dictionary, String>{
+	
+	}

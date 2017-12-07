@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import edu.utd.actorDictionary.config.GlobalProperties;
+import edu.utd.actorDictionary.domain.Dictionary;
 import edu.utd.actorDictionary.domain.User;
 import edu.utd.actorDictionary.dto.RoleDTO;
 import edu.utd.actorDictionary.dto.RoleSynonymListJson;
@@ -132,7 +133,7 @@ public class ActorDictionaryController {
 	}
 
 	/**
-	 * This is API endpoint for getting wiki links for actors
+	 * This is API endpoint for getting wiki links for actors by username
 	 * 
 	 * @param secretKey
 	 * @return
@@ -141,12 +142,12 @@ public class ActorDictionaryController {
 	@CrossOrigin
 	@RequestMapping(method = RequestMethod.GET, value = "/dictionary/wikiForActors/{username}", headers = {
 			"Accept=application/json" })
-	public Map<String, Map<String, String>> getWikiForActors(@RequestHeader(value = "secret-key") String secretKey,@PathVariable String username)
+	public Map<String, Map<String, String>> getWikiForActorsByUser(@RequestHeader(value = "secret-key") String secretKey,@PathVariable String username)
 			throws ParseException {
 		boolean valid = commonService.validate(secretKey);
 		if (valid) {
 			log.info("Client request :: Wike For Actors ");
-			Map<String, Map<String, String>> actorWiki = service.findActorWiki(username);
+			Map<String, Map<String, String>> actorWiki = service.findActorWikiByUser(username);
 
 			log.info("Returning " + actorWiki.size() + " rows. ");
 			return actorWiki;
@@ -156,6 +157,61 @@ public class ActorDictionaryController {
 
 	}
 
+	/**
+	 * This is API endpoint for getting wiki links for actors. Version 2
+	 * 
+	 * @param secretKey
+	 * @return
+	 * @throws ParseException
+	 */
+	@CrossOrigin
+	@RequestMapping(method = RequestMethod.GET, value = "/dictionary/wikiForActorsV2/{actor}", headers = {
+			"Accept=application/json" })
+	public Map<String, List<String>> getWikiForActors(@RequestHeader(value = "secret-key") String secretKey,@PathVariable String actor)
+			throws ParseException {
+		boolean valid = commonService.validate(secretKey);
+		if (valid) {
+			log.info("Client request :: Wike For Actors ");
+			Map<String, List< String>> actorWiki = service.findActorWiki(actor);
+
+			log.info("Returning " + actorWiki.size() + " rows. ");
+			return actorWiki;
+		} else {
+			throw new UnauthorizedAccessException();
+		}
+
+	}
+	
+	/**
+	 * This is the API endpoint for adding url to dictionary
+	 * 
+	 * @param secretKey
+	 * @param input
+	 * @return
+	 * @throws ParseException
+	 */
+	@CrossOrigin
+	@RequestMapping(method = RequestMethod.POST, value = "/dictionary/saveDictionary/{username}", headers = {
+			"Accept=application/json" })
+	public ResponseEntity<?> addDictionary(@RequestHeader(value = "secret-key") String secretKey,
+			@RequestBody Dictionary input,@PathVariable String username) throws ParseException {
+		boolean valid = commonService.validate(secretKey);
+		if (valid) {
+			log.info("Client request :: Save Dictionary ");
+			String success = service.saveDictionary(input,username);
+			if (!success.isEmpty()) {
+				log.info("Client request :: Save Dictionary Completed");
+				return new ResponseEntity<>(success,HttpStatus.OK);
+			}
+
+			return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+		} else {
+			throw new UnauthorizedAccessException();
+		}
+
+	}
+	
+	
 	/**
 	 * This is the API endpoint for uploading data for dictionary
 	 * 
@@ -391,4 +447,8 @@ public class ActorDictionaryController {
 
 	}
 
+	
+	
+	
+	
 }
